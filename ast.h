@@ -1,14 +1,15 @@
 #ifndef AST_H
 #define AST_H
 
+#define MAX_CHILDREN 10
 enum {
 	A_INTLIT, A_ADD, A_SUB, A_MULT, A_DIV
 };
 
 struct ast_node {
-	int tokentype;
+	int t_operatortype;
 	int val;
-	ast_node** children;
+	struct ast_node* children[MAX_CHILDREN];
 	int kChildren;
 };
 

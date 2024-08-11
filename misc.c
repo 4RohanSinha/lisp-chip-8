@@ -3,6 +3,6 @@
 #include <stdlib.h>
 
 void syntaxerror(const char* msg) {
-	fprintf(stderr, msg);
+	fprintf(stderr, "%s", msg);
 	exit(1);
 }
