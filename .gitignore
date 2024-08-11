@@ -1,3 +1,4 @@
 test.lsp
 a.out
 interp
+*.o
