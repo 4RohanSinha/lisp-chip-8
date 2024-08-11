@@ -130,7 +130,7 @@ int scan(struct token* t) {
 			} else {
 				scan_identifier(c, ident, IDENT_LEN);
 				int ttype;
-				if (ttype = keyword(ident)) { 
+				if ((ttype = keyword(ident))) { 
 					t->tokentype = ttype;
 					break;
 				}
