@@ -8,9 +8,13 @@ enum {
 
 struct ast_node {
 	int t_operatortype;
-	int val;
 	struct ast_node* children[MAX_CHILDREN];
 	int kChildren;
+
+	union {
+		int val;
+		char* symbol;
+	} key;
 };
 
 #endif

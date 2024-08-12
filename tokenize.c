@@ -71,7 +71,7 @@ static int scan_identifier(int c, char* buffer, int max_len) {
 	int len = 0;
 
 	//while (isalpha(c) || isdigit(c) || c == '_') {
-	while (!isspace(c) && c != EOF) {
+	while (!isspace(c) && c != EOF && c != ')') {
 		if (max_len - 1 == len) {
 			printf("Identifier too long\n");
 		} else if (len < max_len - 1) {

@@ -1,5 +1,6 @@
 #include "tokenize.h"
 #include "stmt.h"
+#include "c8.h"
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
@@ -28,9 +29,9 @@ int main(int argc, char* argv[]) {
 		fprintf(stderr, "Unable to open %s: %s\n", argv[1], strerror(errno));
 		return 1;
 	}
-
+	c8_init("out.s");
 	setFile(f);
-	execute();
+	st_parse();
 /*
 	struct token t;
 	while (scan(&t)) {
