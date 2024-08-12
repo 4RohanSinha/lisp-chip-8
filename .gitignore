@@ -2,3 +2,9 @@ test.lsp
 a.out
 interp
 *.o
+*.lsp
+*.s
+*.asm
+*.swp
+*.out
+*.ch8
