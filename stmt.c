@@ -4,6 +4,7 @@
 #include "ast.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 const char* tokenToString(int token) {
     switch (token) {
@@ -33,7 +34,16 @@ static struct ast_node* process_paren() {
 
 	cur_node->t_operatortype = t.tokentype;
 	cur_node->kChildren = 0;
+	
+	if (t.tokentype == T_IDENT) {
+		cur_node->key.symbol = (char*)(malloc(sizeof(char)*(strlen(t.val.charval)+1)));
+		strcpy(cur_node->key.symbol, t.val.charval);
+	}
+
 	match_multiple(&t, operators, sizeof(operators)/sizeof(int), "operator");
+
+	cur_node->sType = S_FUNC;
+
 
 	// add children nodes
 	while (t.tokentype != T_CLOSE_PAREN) {
@@ -47,11 +57,20 @@ static struct ast_node* process_paren() {
 				break;
 			case T_INTLIT:
 				new_child = (struct ast_node*)malloc(sizeof(struct ast_node));
-				new_child->key.val = t.val;
+				new_child->key.val = t.val.intval;
 				new_child->t_operatortype = T_INTLIT;
 				new_child->kChildren = 0;
 				cur_node->children[(cur_node->kChildren)++] = new_child;
 				break;
+			case T_IDENT:
+				new_child = (struct ast_node*)malloc(sizeof(struct ast_node));
+				new_child->key.symbol = (char*)(malloc(sizeof(char)*(strlen(t.val.charval)+1)));
+				strcpy(new_child->key.symbol, t.val.charval);
+				new_child->t_operatortype = T_IDENT;
+				new_child->kChildren = 0;
+				cur_node->children[(cur_node->kChildren)++] = new_child;
+				break;
+				
 			default:
 				printf("Illegal token on line %d\n", get_lineNo());
 				exit(1);
@@ -66,6 +85,7 @@ static struct ast_node* process_paren() {
 static void print_ast(struct ast_node* tree, int indent) {
 	for (int i = 0; i < indent; i++) printf("\t");
 	if (tree->t_operatortype == T_INTLIT) printf("%d ", tree->key.val);
+	else if (tree->t_operatortype == T_IDENT) printf("%s ", tree->key.symbol);
 	printf("%s %d\n", tokenToString(tree->t_operatortype), tree->kChildren);
 	for (int i = 0; i < tree->kChildren; i++)
 		print_ast(tree->children[i], indent+1);

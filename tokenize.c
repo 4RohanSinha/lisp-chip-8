@@ -125,7 +125,7 @@ int scan(struct token* t) {
 			if (isdigit(c)) {
 				int val = scanint(c);
 				t->tokentype = T_INTLIT;
-				t->val = val;
+				t->val.intval = val;
 				break;
 			} else {
 				scan_identifier(c, ident, IDENT_LEN);
@@ -134,7 +134,10 @@ int scan(struct token* t) {
 					t->tokentype = ttype;
 					break;
 				}
+
 				t->tokentype = T_IDENT;
+				t->val.charval = (char*)(malloc(sizeof(char)*(1+strlen(ident))));
+				strcpy(t->val.charval, ident);
 			}
 
 

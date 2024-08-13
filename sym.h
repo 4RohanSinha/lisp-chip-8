@@ -5,19 +5,21 @@
 
 enum { L_REG, L_MEM, L_NONE };
 
+enum { I_FUNC, I_VAR, I_NONE };
+
 struct location {
 	int type;
 	unsigned int loc;
 };
 
-struct symtable {
+struct symbol {
 	char* name;
 	struct location loc;
+	int i_type;
 };
 
-extern struct symtable globals[NSYMBOLS];
 
-struct location resolve_gsymbol(char*);
+struct symbol resolve_gsymbol(char*);
 struct location add_gsymbol(char*);
 
 #endif

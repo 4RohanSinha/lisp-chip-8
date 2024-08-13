@@ -12,7 +12,7 @@ void c8_init(const char* fname) {
 
 //r0 - return addr
 int c8_alloc_reg() {
-	for (int i = 5; i < 16; i++) {
+	for (int i = 1; i < 15; i++) {
 		if (reg_use[i] == 0) {
 			reg_use[i] = 1;
 			return i;
@@ -27,7 +27,7 @@ void c8_free_reg(int reg) {
 }
 
 void c8_free_allreg() {
-	for (int i = 0; i < 16; i++) reg_use[i] = 0;
+	for (int i = 1; i < 15; i++) reg_use[i] = 0;
 }
 
 void c8_cls() {
@@ -61,10 +61,14 @@ void c8_load_instr_const(int c, int reg) {
 void c8_load_instr_reg(int dest, int src) {
 	fprintf(out_file, "\tld V%d, V%d\n", dest, src);
 	reg_use[dest] = 1;
-	c8_free_reg(src);
+	//c8_free_reg(src);
 }
 
 void c8_add_instr_reg(int dest, int src) {
 	fprintf(out_file, "\tadd V%d, V%d\n", dest, src);
 	reg_use[dest] = 1;
+}
+
+void c8_callq(const char* method) {
+	fprintf(out_file, "\tcall %s\n", method);
 }

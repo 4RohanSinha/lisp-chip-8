@@ -11,7 +11,12 @@ enum {
 
 struct token {
 	int tokentype;
-	int val;
+
+	union {
+		int intval;
+		char* charval;
+	} val;
+
 };
 
 void setFile(FILE*);
