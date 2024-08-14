@@ -37,7 +37,7 @@ void gen_arith_res(struct ast_node* stmt, int* output) {
 			}
 
 		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
-			struct symbol nextS = resolve_gsymbol(stmt->children[i]->key.symbol);
+			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
 			if (nextS.loc.type == L_REG) {
 				if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) {
 					c8_add_instr_reg(accum_reg, nextS.loc.loc);
@@ -60,47 +60,56 @@ void gen_arith_res(struct ast_node* stmt, int* output) {
 }
 
 void execute_setq(struct ast_node* stmt) {
-	struct location loc = add_gsymbol(stmt->children[0]->key.symbol);
+	struct location loc;
+	struct symbol next_sym;
 
-	if (loc.type == L_REG && stmt->children[1]->t_operatortype == T_IDENT) {
-		struct symbol nextS = resolve_gsymbol(stmt->children[1]->key.symbol);
+	if (stmt->kChildren % 2 == 1) {
+		printf("Error: line %d: setq may not have an odd # of parameters\n", get_lineNo());
+		exit(1);
+	}
 
-		if (nextS.loc.type == L_REG) {
-			c8_load_instr_reg(loc.loc, nextS.loc.loc);
-		} else {
-			printf("Fatal setq\n");
-			exit(1);
+	for (int i = 0; i < stmt->kChildren; i+=2) {
+		loc = sym_declare_symbol(stmt->children[i]->key.sloc);
+
+		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT) {
+			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
+
+			if (next_sym.loc.type == L_REG) {
+				c8_load_instr_reg(loc.loc, next_sym.loc.loc);
+			} else {
+				printf("Fatal setq\n");
+				exit(1);
+			}
+		} else if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_INTLIT) {
+			c8_load_instr_const(stmt->children[i+1]->key.val, loc.loc);
+		} else if (loc.type == L_REG) {
+			st_execute(stmt->children[i+1]);
+			c8_load_instr_reg(loc.loc, 0);
 		}
-	} else if (loc.type == L_REG && stmt->children[1]->t_operatortype == T_INTLIT) {
-		c8_load_instr_const(stmt->children[1]->key.val, loc.loc);
-	} else if (loc.type == L_REG) {
-		st_execute(stmt->children[1]);
-		c8_load_instr_reg(loc.loc, 0);
 	}
 }
 
 void execute_fxn(struct ast_node* stmt) {
-	if (stmt->kChildren > 3) {
+	if (stmt->kChildren > 5) {
 		printf("Error: functions may not have more than 3 parameters\n");
 		exit(1);
 	}
 
 	int nRegisters = 0;
-	int alloc_registers[3];
+	int alloc_registers[5];
 
 	for (int i = 0; i < stmt->kChildren; i++) {
-		int next_reg = c8_alloc_reg();
+		int next_reg = c8_alloc_param_reg();
 		alloc_registers[i] = next_reg;
 		nRegisters++;
 
-		//TODO: change S_FUNC to work with i_type member of resolve_symbol
-		if (stmt->children[i]->sType == S_FUNC) {
+		if (stmt->children[i]->kChildren > 0) {
 			st_execute(stmt->children[i]);
 			c8_load_instr_reg(next_reg, 0);
 		} else if (stmt->children[i]->t_operatortype == T_INTLIT) {
 			c8_load_instr_const(stmt->children[i]->key.val, next_reg);
 		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
-			struct symbol nextS = resolve_gsymbol(stmt->children[i]->key.symbol);
+			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
 			if (nextS.loc.type == L_REG)
 				c8_load_instr_reg(next_reg, nextS.loc.loc);
 			else {
@@ -110,7 +119,7 @@ void execute_fxn(struct ast_node* stmt) {
 		}
 	}
 
-	c8_callq(stmt->key.symbol);
+	c8_callq(sym_get_symbol_for(stmt->key.sloc));
 	for (int i = 0; i < nRegisters; i++) {
 		c8_free_reg(alloc_registers[i]);
 	}

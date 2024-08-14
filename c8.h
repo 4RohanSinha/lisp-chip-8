@@ -4,6 +4,7 @@
 void c8_init(const char*);
 
 int c8_alloc_reg();
+int c8_alloc_param_reg();
 void c8_free_reg(int);
 void c8_free_allreg();
 

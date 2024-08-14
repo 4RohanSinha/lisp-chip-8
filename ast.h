@@ -2,6 +2,9 @@
 #define AST_H
 
 #define MAX_CHILDREN 10
+
+#include "sym.h"
+
 enum {
 	A_INTLIT, A_ADD, A_SUB, A_MULT, A_DIV
 };
@@ -18,7 +21,7 @@ struct ast_node {
 
 	union {
 		int val;
-		char* symbol;
+		struct symtableloc sloc;
 	} key;
 };
 

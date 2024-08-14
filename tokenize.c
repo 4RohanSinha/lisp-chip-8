@@ -63,6 +63,11 @@ static int scanint(int c) {
 		c = next();
 	}
 
+	if (!isspace(c) && c != EOF && c != ')') {
+		printf("Illegal token following number: %d on line %d\n", val, lineNo);
+		exit(1);
+	}
+
 	putback(c);
 	return val;
 }
@@ -136,8 +141,8 @@ int scan(struct token* t) {
 				}
 
 				t->tokentype = T_IDENT;
-				t->val.charval = (char*)(malloc(sizeof(char)*(1+strlen(ident))));
-				strcpy(t->val.charval, ident);
+				struct symtableloc sloc = sym_process_symbol(ident);
+				t->val.sloc = sloc;
 			}
 
 

@@ -12,14 +12,27 @@ void c8_init(const char* fname) {
 
 //r0 - return addr
 int c8_alloc_reg() {
-	for (int i = 1; i < 15; i++) {
+	for (int i = 6; i < 15; i++) {
 		if (reg_use[i] == 0) {
 			reg_use[i] = 1;
 			return i;
 		}	
 	}
 
-	return -1;
+	printf("Register overflow\n");
+	exit(1);
+}
+
+int c8_alloc_param_reg() {
+	for (int i = 1; i < 6; i++) {
+		if (reg_use[i] == 0) {
+			reg_use[i] = 1;
+			return i;
+		}
+	}
+
+	printf("Parameter register overflow\n");
+	exit(1);
 }
 
 void c8_free_reg(int reg) {

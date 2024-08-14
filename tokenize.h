@@ -2,6 +2,7 @@
 #define TOKENIZE_H
 
 #include <stdio.h>
+#include "sym.h"
 
 enum {
 	T_UNKNOWN, T_OPEN_PAREN, T_CLOSE_PAREN, 
@@ -14,7 +15,7 @@ struct token {
 
 	union {
 		int intval;
-		char* charval;
+		struct symtableloc sloc;		
 	} val;
 
 };

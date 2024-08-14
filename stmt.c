@@ -36,8 +36,7 @@ static struct ast_node* process_paren() {
 	cur_node->kChildren = 0;
 	
 	if (t.tokentype == T_IDENT) {
-		cur_node->key.symbol = (char*)(malloc(sizeof(char)*(strlen(t.val.charval)+1)));
-		strcpy(cur_node->key.symbol, t.val.charval);
+		cur_node->key.sloc = t.val.sloc;
 	}
 
 	match_multiple(&t, operators, sizeof(operators)/sizeof(int), "operator");
@@ -64,8 +63,7 @@ static struct ast_node* process_paren() {
 				break;
 			case T_IDENT:
 				new_child = (struct ast_node*)malloc(sizeof(struct ast_node));
-				new_child->key.symbol = (char*)(malloc(sizeof(char)*(strlen(t.val.charval)+1)));
-				strcpy(new_child->key.symbol, t.val.charval);
+				new_child->key.sloc = t.val.sloc;
 				new_child->t_operatortype = T_IDENT;
 				new_child->kChildren = 0;
 				cur_node->children[(cur_node->kChildren)++] = new_child;
@@ -85,7 +83,7 @@ static struct ast_node* process_paren() {
 static void print_ast(struct ast_node* tree, int indent) {
 	for (int i = 0; i < indent; i++) printf("\t");
 	if (tree->t_operatortype == T_INTLIT) printf("%d ", tree->key.val);
-	else if (tree->t_operatortype == T_IDENT) printf("%s ", tree->key.symbol);
+	else if (tree->t_operatortype == T_IDENT) printf("%s ", sym_get_symbol_for(tree->key.sloc));
 	printf("%s %d\n", tokenToString(tree->t_operatortype), tree->kChildren);
 	for (int i = 0; i < tree->kChildren; i++)
 		print_ast(tree->children[i], indent+1);
@@ -95,14 +93,12 @@ void st_parse() {
 	struct ast_node* stmt = NULL;
 
 	while (scan(&t)) {
-		//printf("%s\n", tokenToString(t.tokentype));
-		//printf("\n");
 		switch (t.tokentype) {
 			case T_INTLIT:
 				break;
 			case T_OPEN_PAREN:
 				stmt = process_paren();
-				print_ast(stmt, 0);
+				//print_ast(stmt, 0);
 				st_execute(stmt);
 				break;
 			default:
