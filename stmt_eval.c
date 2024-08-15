@@ -61,6 +61,7 @@ void gen_arith_res(struct ast_node* stmt, int* output) {
 
 void execute_setq(struct ast_node* stmt) {
 	struct location loc;
+	struct symbol cur_symbol;
 	struct symbol next_sym;
 
 	if (stmt->kChildren % 2 == 1) {
@@ -69,7 +70,13 @@ void execute_setq(struct ast_node* stmt) {
 	}
 
 	for (int i = 0; i < stmt->kChildren; i+=2) {
-		loc = sym_declare_symbol(stmt->children[i]->key.sloc);
+		cur_symbol = resolve_symbol(stmt->children[i]->key.sloc);
+
+		if (cur_symbol.i_type == I_NONE) {
+			loc = sym_declare_symbol(stmt->children[i]->key.sloc);
+		} else {
+			loc = cur_symbol.loc;
+		}
 
 		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT) {
 			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
@@ -125,6 +132,15 @@ void execute_fxn(struct ast_node* stmt) {
 	}
 }
 
+void execute_cls(struct ast_node* stmt) {
+	if (stmt->kChildren > 0) {
+		printf("cls received unexpected # of arguments: line %d\n", get_lineNo());
+		exit(1);
+	}
+
+	c8_cls();
+}
+
 //this fxn will generate assembly
 void st_execute(struct ast_node* stmt) {
 	struct ast_node* glue;
@@ -141,6 +157,9 @@ void st_execute(struct ast_node* stmt) {
 			break;
 		case T_SETQ:
 			execute_setq(stmt);
+			break;
+		case T_CLS:
+			execute_cls(stmt);
 			break;
 		default:
 			printf("Fatal: unsupported statement\n");

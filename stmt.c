@@ -23,7 +23,7 @@ const char* tokenToString(int token) {
     }
 }
 
-static int operators[] = {T_PLUS, T_MINUS, T_STAR, T_SLASH, T_SETQ, T_LET, T_IDENT};
+static int operators[] = {T_PLUS, T_MINUS, T_STAR, T_SLASH, T_SETQ, T_LET, T_IDENT, T_CLS};
 static struct token t;
 //each process paren returns an ast_node*! a tree, basically.
 static struct ast_node* process_paren() {

@@ -1,10 +1,11 @@
 #include "tokenize.h"
+#include "assembler.h"
 #include "stmt.h"
 #include "c8.h"
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
-
+#include <stdlib.h>
 /*
 const char* tokenToString(int token) {
     switch (token) {
@@ -24,19 +25,23 @@ const char* tokenToString(int token) {
 }*/
 
 int main(int argc, char* argv[]) {
+	const char* dest_asm;
+	const char* dest_rom;
+
+	if (argc < 2) {
+		printf("Error: must supply source lisp file.");
+		exit(1);
+	}
+
 	FILE* f = fopen(argv[1], "r");
 	if (f == NULL) {
 		fprintf(stderr, "Unable to open %s: %s\n", argv[1], strerror(errno));
 		return 1;
 	}
+
 	c8_init("out.s");
 	setFile(f);
 	st_parse();
-/*
-	struct token t;
-	while (scan(&t)) {
-		printf("%s\n", tokenToString(t.tokentype));
-		printf("\n");
-	}*/
 	fclose(f);
+
 }

@@ -5,9 +5,17 @@
 #include "sym.h"
 
 enum {
-	T_UNKNOWN, T_OPEN_PAREN, T_CLOSE_PAREN, 
+	T_UNKNOWN,
+
+	T_EOF,
+	
+	T_OPEN_PAREN, T_CLOSE_PAREN, 
+
 	T_PLUS, T_MINUS, T_STAR, T_SLASH, T_INTLIT,
-	T_SETQ, T_LET, T_IDENT, T_EOF, T_RVALUE
+
+	T_SETQ, T_LET, T_IDENT, T_CLS,
+
+	T_EQUALS, T_LT, T_GT, T_LTE, T_GTE
 };
 
 struct token {

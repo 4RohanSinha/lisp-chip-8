@@ -16,4 +16,5 @@ stmt.o: stmt.c $(HEADERS)
 tokenize.o: tokenize.c $(HEADERS)
 
 clean:
-	rm -f interp
+	rm -f lispc-c8
+	rm -f $(OBJ)

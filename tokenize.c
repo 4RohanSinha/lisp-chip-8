@@ -105,6 +105,16 @@ static int keyword(char* s) {
 			if (!strcmp(s, "let")) return T_LET;
 		case 's':
 			if (!strcmp(s, "setq")) return T_SETQ;
+		case 'c':
+			if (!strcmp(s, "cls")) return T_CLS;
+		case '=':
+			if (!strcmp(s, "=")) return T_EQUALS;
+		case '>':
+			if (!strcmp(s, ">")) return T_GT;
+			if (!strcmp(s, ">=")) return T_GTE;
+		case '<':
+			if (!strcmp(s, "<")) return T_LT;
+			if (!strcmp(s, "<=")) return T_LTE;
 		default:
 			return T_UNKNOWN;
 	}
