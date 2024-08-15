@@ -9,3 +9,4 @@ interp
 *.out
 *.ch8
 lispc-c8
+*.rom
