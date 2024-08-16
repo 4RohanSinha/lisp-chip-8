@@ -11,3 +11,4 @@ interp
 lispc-c8
 *.rom
 c8_emulator
+assembler

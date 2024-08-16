@@ -5,8 +5,16 @@ This project seeks to implement a compiler that will create Assembly instruction
 
 # Usage
 
-To run this project:
+To run this project's compiler into Assembly:
 ```
 make
-./interp
+./lispc-c8 [FILENAME]
 ```
+
+To run this project's assembler converting Chip 8 Assembly into a ROM file:
+```
+make assembler
+./assembler out.s
+```
+
+This outputs a Chip 8 ROM file.

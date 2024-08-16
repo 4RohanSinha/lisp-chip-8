@@ -18,3 +18,10 @@ tokenize.o: tokenize.c $(HEADERS)
 clean:
 	rm -f lispc-c8
 	rm -f $(OBJ)
+	rm -f assembler
+	rm -f assembler.o
+
+assembler: assembler.o
+	$(CC) -o $@ $(ASAN_FLAGS) $^
+
+assembler.o: assembler.c assembler.h
