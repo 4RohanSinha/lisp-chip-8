@@ -10,3 +10,4 @@ interp
 *.ch8
 lispc-c8
 *.rom
+c8_emulator
