@@ -4,8 +4,136 @@
 #include "c8.h"
 #include "sym.h"
 #include <stdlib.h>
+#include <stdbool.h>
 
 
+/*
+(+ (- 4 3) 2) => this should resolve completely
+prevAccumulatedTotal = 2
+now we look at (- 4 3)
+prevAccumulatedTotal = 1 - then we return and it gets added.
+
+what should happen
+
+(+ (- 4 3 x) a 2)
+we look at a particular expression and try to resolve it as much.
+	if we can resolve it, we return true, and don't need to look at it again - we can just dump it into an accumulation
+	if we can't resolve it, we dump an accumulated total and the other thing in a register, return false - which means that anything depending on it can't be resolved
+ **/
+
+bool resolve_exp(struct ast_node* stmt, int* res) {
+	int accumulatedTotal = 0;
+	bool canResolve = true;
+	int accumReg = -1;
+	int extraSubReg = -1;
+	int innerExp = 0;
+
+	for (int i = 0; i < stmt->kChildren; i++) {
+		
+		if (stmt->children[i]->t_operatortype == T_INTLIT) {
+		
+			if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) accumulatedTotal += stmt->children[i]->key.val;
+			else if (stmt->t_operatortype == T_MINUS) accumulatedTotal -= stmt->children[i]->key.val;
+		
+		} else if (stmt->children[i]->t_operatortype == T_PLUS || stmt->children[i]->t_operatortype == T_MINUS) {
+		
+			canResolve = canResolve && resolve_exp(stmt->children[i], &innerExp);
+			if (!canResolve) {
+
+				if (accumReg == -1 && (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0))) {
+					accumReg = c8_alloc_reg();
+					c8_load_instr_reg(accumReg, 0);
+				} else if (extraSubReg == -1 && stmt->t_operatortype == T_MINUS) {
+					extraSubReg = c8_alloc_reg();
+					c8_load_instr_reg(extraSubReg, 0);
+				} else if (stmt->t_operatortype == T_PLUS) c8_add_instr_reg(accumReg, 0);
+				else if (stmt->t_operatortype == T_MINUS) c8_add_instr_reg(extraSubReg, 0);
+
+			} else {
+				if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) accumulatedTotal += innerExp;
+				else if (stmt->t_operatortype == T_MINUS) accumulatedTotal -= innerExp;
+
+			}
+		
+		} else if (stmt->children[i]->sType == S_FUNC) {
+			canResolve = false;
+			st_execute(stmt->children[i]);
+			if (accumReg == -1 && (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0))) {
+				accumReg = c8_alloc_reg();
+				c8_load_instr_reg(accumReg, 0);
+			} else if (extraSubReg == -1 && stmt->t_operatortype == T_MINUS) {
+				extraSubReg = c8_alloc_reg();
+				c8_load_instr_reg(extraSubReg, 0);
+			
+			} else if (stmt->t_operatortype == T_PLUS) c8_add_instr_reg(accumReg, 0);
+			else if (stmt->t_operatortype == T_MINUS) c8_add_instr_reg(extraSubReg, 0);
+
+		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
+			canResolve = false;
+			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
+
+			if (nextS.loc.type == L_REG) {
+				if (accumReg == -1 && (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0))) {
+					accumReg = c8_alloc_reg();
+					//(- 7 x) vs // (- x 7)
+					
+					//if we encounter a variable as the first thing, we want to load it into the accumulator
+					c8_load_instr_reg(accumReg, nextS.loc.loc);
+					//if we encounter a variable as a later operand
+				} else if (extraSubReg == -1 && stmt->t_operatortype == T_MINUS) {
+					extraSubReg = c8_alloc_reg();
+					c8_load_instr_reg(extraSubReg, nextS.loc.loc);
+				} else if (stmt->t_operatortype == T_PLUS) {
+					c8_add_instr_reg(accumReg, nextS.loc.loc);
+				} else if (stmt->t_operatortype == T_MINUS) {
+					c8_add_instr_reg(extraSubReg, nextS.loc.loc);
+				}
+
+			} else {
+				printf("Memory access error arithmetic\n");
+				exit(1);
+			}
+		
+		} 
+	}
+
+	if (accumulatedTotal > 0 && accumReg != -1) c8_add_instr_const(accumulatedTotal, accumReg);
+
+	if (extraSubReg != -1 && accumReg == -1) {
+		accumReg = c8_alloc_reg();
+		c8_load_instr_const(accumulatedTotal, accumReg);
+	}
+
+	if (extraSubReg != -1) {
+		c8_sub_instr_reg(accumReg, extraSubReg);
+		c8_free_reg(extraSubReg);
+	}
+
+	//accumReg has the final result, or accumulatedTotal
+	if (accumReg != -1) {
+		c8_load_instr_reg(0, accumReg);
+		c8_free_reg(accumReg);
+	}
+	
+
+
+	if (canResolve) {
+		*res = accumulatedTotal;
+	}
+
+	
+
+	return canResolve;
+}
+
+void gen_arith_res(struct ast_node* stmt) {
+	int x = -1;
+	bool didResolve = resolve_exp(stmt, &x);
+
+	if (didResolve) c8_load_instr_const(x, 0);
+
+}
+/*
 void gen_arith_res(struct ast_node* stmt, int* output) {
 	//accumulate what we know - optimization
 	//generate code to place what we need in a return value register r0
@@ -58,6 +186,7 @@ void gen_arith_res(struct ast_node* stmt, int* output) {
 
 	c8_load_instr_reg(0, accum_reg);
 }
+*/
 
 void execute_setq(struct ast_node* stmt) {
 	struct location loc;
@@ -78,7 +207,7 @@ void execute_setq(struct ast_node* stmt) {
 			loc = cur_symbol.loc;
 		}
 
-		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT) {
+		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT && stmt->children[i+1]->sType != S_FUNC) {
 			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
 
 			if (next_sym.loc.type == L_REG) {
@@ -106,12 +235,15 @@ void execute_fxn(struct ast_node* stmt) {
 	int alloc_registers[5];
 
 	for (int i = 0; i < stmt->kChildren; i++) {
-		int next_reg = c8_alloc_param_reg();
+		int next_reg;
+
+		if (stmt->children[i]->kChildren > 0) st_execute(stmt->children[i]);
+
+		next_reg = c8_alloc_param_reg();
 		alloc_registers[i] = next_reg;
 		nRegisters++;
 
 		if (stmt->children[i]->kChildren > 0) {
-			st_execute(stmt->children[i]);
 			c8_load_instr_reg(next_reg, 0);
 		} else if (stmt->children[i]->t_operatortype == T_INTLIT) {
 			c8_load_instr_const(stmt->children[i]->key.val, next_reg);
@@ -153,7 +285,7 @@ void st_execute(struct ast_node* stmt) {
 			break;
 		case T_PLUS:
 		case T_MINUS:
-			gen_arith_res(stmt, NULL);
+			gen_arith_res(stmt);
 			break;
 		case T_SETQ:
 			execute_setq(stmt);

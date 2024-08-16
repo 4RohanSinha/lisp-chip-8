@@ -20,6 +20,7 @@ void write_instruction(struct instruction instr) {
 
 	switch (instr.a_type) {
 		case AT_CLS:
+			if (instr.nParams > 0) illegal_instr_exit();
 			buffer[0] = 0x00;
 			buffer[1] = 0xe0;
 			break;

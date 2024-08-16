@@ -98,7 +98,7 @@ void st_parse() {
 				break;
 			case T_OPEN_PAREN:
 				stmt = process_paren();
-				//print_ast(stmt, 0);
+	//			print_ast(stmt, 0);
 				st_execute(stmt);
 				break;
 			default:
