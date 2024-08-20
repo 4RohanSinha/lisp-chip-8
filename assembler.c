@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdbool.h>
 #include <ctype.h>
 
 #define INSTR_LENGTH 5
@@ -9,10 +10,24 @@
 static FILE* in_handle;
 static FILE* out_handle;
 static int lineNo;
+static struct label label_table[1024];
+static int kLabelCount;
+int pc = 0x200;
 
 static void illegal_instr_exit() {
 	printf("Abort: Illegal instruction on line %d\n", lineNo);
 	exit(1);
+}
+
+unsigned int getAddressForLabel(const char* name) {
+	for (int i = 0; i < kLabelCount; i++)
+		if (!strcmp(label_table[i].name, name)) return label_table[i].addr;
+	return -1;
+}
+
+void moveAddressesAfterBy(int startingAddr, int offset) {
+	for (int i = 0; i < kLabelCount; i++)
+		if (label_table[i].addr > startingAddr) label_table[i].addr += offset;
 }
 
 void write_instruction(struct instruction instr) {
@@ -24,6 +39,28 @@ void write_instruction(struct instruction instr) {
 			buffer[0] = 0x00;
 			buffer[1] = 0xe0;
 			break;
+		case AT_JP:
+			if (instr.nParams > 1) illegal_instr_exit();
+			if (instr.params[0].p_type != P_INTLIT) illegal_instr_exit();
+			//	printf("%x\n", getAddressForLabel(label_table[kLabelCount-1].name));
+			//printf("%x\n", instr.params[0].val);
+			buffer[0] = (0x1 << 4) + ((instr.params[0].val & 0xf00) >> 8);
+			buffer[1] = instr.params[0].val & 0xff;
+			break;
+		case AT_SNE:
+			if (instr.nParams > 2) illegal_instr_exit();
+			if (instr.params[0].p_type != P_REG) illegal_instr_exit();
+			if (instr.params[1].p_type == P_INTLIT) {
+				buffer[0] = (0x4 << 4) + (instr.params[0].val);
+				buffer[1] = instr.params[1].val & 0xff;
+				break;	
+			} else if (instr.params[1].p_type == P_REG) {
+				buffer[0] = (0x9 << 4) + (instr.params[0].val);
+				buffer[1] = (instr.params[1].val << 4) + 0;
+				break;
+			}
+
+			illegal_instr_exit();
 		case AT_ADD:
 			if (instr.nParams > 2) {
 				illegal_instr_exit();
@@ -182,13 +219,24 @@ static struct instr_dec decode(char* text) {
 		case 'l':
 			if (!strcmp("ld", text)) id.a_type = AT_LD;
 			break;
+		case 'j':
+			if (!strcmp("jp", text)) id.a_type = AT_JP;
+			break;
 		case 'r':
 			if (!strcmp("ret", text)) id.a_type = AT_RET;
 			break;
 		case 's':
 			if (!strcmp("sub", text)) id.a_type = AT_SUB;
+			if (!strcmp("sne", text)) id.a_type = AT_SNE;
 			break;
 		default:
+			if (getAddressForLabel(text) != -1) {
+				id.d_type = DT_VAL;
+				id.p_type = P_INTLIT;
+				id.val = getAddressForLabel(text);
+				return id;
+			}
+
 			illegal_instr_exit();
 
 	}
@@ -218,35 +266,85 @@ static void update_instruction(struct instruction* instr, struct instr_dec* deco
 	}
 }
 
+void process_labels() {
+	char c;
+	char text_buffer[10];
+	int i = 0;
+	int numWords = 0;
+	bool labelAddedOnCurLine = false;
+
+	while ((c = fgetc(in_handle)) != EOF) {
+		if (i >= 9) illegal_instr_exit();
+		
+		if (c == ':') {
+			if (numWords > 0) illegal_instr_exit();
+			text_buffer[i] = '\0';
+			strcpy(label_table[kLabelCount++].name, text_buffer);
+			label_table[kLabelCount-1].addr = pc;
+			i = 0;
+			labelAddedOnCurLine = true;
+		} else if (isalpha(c) || isdigit(c) || c == '_') text_buffer[i++] = c;
+		else if (isspace(c)) {
+			i = 0;
+			numWords++;
+		} if (c == '\n') {
+			lineNo++;
+			numWords = 0;
+			if (!labelAddedOnCurLine) pc += 2;
+			labelAddedOnCurLine = false;
+		}
+	}
+}
+
 void generate_rom() {
 	char c;
-	char text_buffer[6];
+	char text_buffer[10];
 	struct instruction cur_instruction;
 	struct instr_dec decoding;
+	bool skipCurLine = false;
 	int i = 0;
 
 	cur_instruction.a_type = -1;
 	cur_instruction.nParams = 0;
 
+	process_labels();
+
+	fseek(in_handle, 0, SEEK_SET);
+	lineNo = 0;
+
+	if (getAddressForLabel("main") == -1) {
+		printf("Fatal: no entry point\n");
+		exit(1);
+	}
+
 	while ((c = fgetc(in_handle)) != EOF) {
-		if (i >= 5) {
+		if (i >= 9) {
 			illegal_instr_exit();
 		}
 
 		if ((c == ',' || c == ' ' || c == '\n') && i > 0) {
-			text_buffer[i] = '\0';
-			decoding = decode(text_buffer);
-			update_instruction(&cur_instruction, &decoding);
+			if (!skipCurLine) {
+				text_buffer[i] = '\0';
+				decoding = decode(text_buffer);
+				update_instruction(&cur_instruction, &decoding);
+			}
 			i = 0;
+		} else if (c == ':') {
+			skipCurLine = true;
+			text_buffer[i] = '\0';
 		} else if (!isspace(c)) {
 			text_buffer[i++] = c;
 		}
 		
 		if (c == '\n') {
-			write_instruction(cur_instruction);
-			lineNo++;
-			cur_instruction.a_type = -1;
-			cur_instruction.nParams = 0;
+			if (!skipCurLine) {
+				write_instruction(cur_instruction);
+				lineNo++;
+				cur_instruction.a_type = -1;
+				cur_instruction.nParams = 0;
+			}
+
+			skipCurLine = false;
 		}
 		
 	}
@@ -255,4 +353,5 @@ void generate_rom() {
 int main(int argc, char** argv) {
 	assembler_init(argv[1]);
 	generate_rom();
+	kLabelCount = 0;
 }

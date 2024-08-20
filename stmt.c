@@ -19,11 +19,12 @@ const char* tokenToString(int token) {
         case T_LET: return "T_LET";
         case T_IDENT: return "T_IDENT";
         case T_EOF: return "T_EOF";
+	case T_IF: return "T_IF";
         default: return "UNKNOWN_TOKEN";
     }
 }
 
-static int operators[] = {T_PLUS, T_MINUS, T_STAR, T_SLASH, T_SETQ, T_LET, T_IDENT, T_CLS};
+static int operators[] = {T_PLUS, T_MINUS, T_STAR, T_SLASH, T_SETQ, T_LET, T_IDENT, T_CLS, T_IF};
 static struct token t;
 //each process paren returns an ast_node*! a tree, basically.
 static struct ast_node* process_paren() {
@@ -98,7 +99,7 @@ void st_parse() {
 				break;
 			case T_OPEN_PAREN:
 				stmt = process_paren();
-	//			print_ast(stmt, 0);
+				//print_ast(stmt, 0);
 				st_execute(stmt);
 				break;
 			default:

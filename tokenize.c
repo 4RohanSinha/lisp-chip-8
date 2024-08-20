@@ -8,7 +8,7 @@
 
 static FILE* in_file;
 static int numParen = 0;
-static int lineNo = 0;
+static int lineNo = 1;
 static char rewind_ = 0;
 static char ident[IDENT_LEN];
 
@@ -107,6 +107,8 @@ static int keyword(char* s) {
 			if (!strcmp(s, "setq")) return T_SETQ;
 		case 'c':
 			if (!strcmp(s, "cls")) return T_CLS;
+		case 'i':
+			if (!strcmp(s, "if")) return T_IF;
 		case '=':
 			if (!strcmp(s, "=")) return T_EQUALS;
 		case '>':

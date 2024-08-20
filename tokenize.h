@@ -15,7 +15,9 @@ enum {
 
 	T_SETQ, T_LET, T_IDENT, T_CLS,
 
-	T_EQUALS, T_LT, T_GT, T_LTE, T_GTE
+	T_EQUALS, T_LT, T_GT, T_LTE, T_GTE,
+
+	T_IF
 };
 
 struct token {

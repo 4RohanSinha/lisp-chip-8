@@ -1,18 +1,18 @@
 #ifndef C8_ASSEMBLER_H
 #define C8_ASSEMBLER_H
 
-enum { AT_LD, AT_ADD, AT_SUB, AT_CALL, AT_CLS, AT_RET };
+enum { AT_LD, AT_ADD, AT_SUB, AT_CALL, AT_CLS, AT_RET, AT_JP, AT_SNE };
 enum { P_REG, P_INTLIT, P_INDEX, P_INDEX_ACC, P_DT, P_ST, P_BCD, P_FSPRITE, P_KEY, P_NONE } ;
 enum { DT_INSTR, DT_VAL, DT_REG, DT_SPARAM } ;
 
-struct function_table {
-	char* name;
+struct label {
+	char name[10];
 	unsigned int addr;
 };
 
 struct instr_param {
 	int p_type;
-	char val;
+	int val;
 };
 
 struct instruction {

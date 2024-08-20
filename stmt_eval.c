@@ -21,6 +21,9 @@ we look at a particular expression and try to resolve it as much.
 	if we can't resolve it, we dump an accumulated total and the other thing in a register, return false - which means that anything depending on it can't be resolved
  **/
 
+typedef int(*accum_val_t)(int, int);
+typedef int(*accum_reg_t)(int*, int*, int); //accumulation register, subtraction register, input register
+
 bool resolve_exp(struct ast_node* stmt, int* res) {
 	int accumulatedTotal = 0;
 	bool canResolve = true;
@@ -207,6 +210,7 @@ void execute_setq(struct ast_node* stmt) {
 			loc = cur_symbol.loc;
 		}
 
+		//TODO: make self references illegal
 		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT && stmt->children[i+1]->sType != S_FUNC) {
 			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
 
@@ -273,6 +277,81 @@ void execute_cls(struct ast_node* stmt) {
 	c8_cls();
 }
 
+void execute_if(struct ast_node* stmt) {
+	struct symbol nextS;
+	char else_label[15];
+	char endif_label[15];
+	bool hasElse = stmt->kChildren == 3;
+
+	if (stmt->kChildren < 2 || stmt->kChildren > 3) {
+		printf("Invalid if statement on line %d\n", get_lineNo());
+		exit(1);
+	}
+
+	switch (stmt->children[0]->t_operatortype) {
+		case T_IDENT:
+			nextS = resolve_symbol(stmt->children[0]->key.sloc);
+			if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
+			else {
+				printf("If statement param error on line %d\n", get_lineNo());
+				exit(1);
+			}
+			break;
+		case T_INTLIT:
+			c8_load_instr_const(stmt->children[0]->key.val, 0);
+			break;
+		default:
+			st_execute(stmt->children[0]);
+	}
+
+	c8_if_stmt_branch(true, else_label, endif_label);
+
+	switch (stmt->children[1]->t_operatortype) {
+		case T_IDENT:
+			nextS = resolve_symbol(stmt->children[1]->key.sloc);
+			if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
+			else {
+				printf("If statement param error on line %d\n", get_lineNo());
+				exit(1);
+			}
+			break;
+		case T_INTLIT:
+			c8_load_instr_const(stmt->children[1]->key.val, 0);
+			break;
+		default:
+			st_execute(stmt->children[1]);
+	}
+
+	if (hasElse) {
+		c8_jp_label(endif_label);
+		c8_print_label(else_label);
+		switch (stmt->children[2]->t_operatortype) {
+			case T_IDENT:
+				nextS = resolve_symbol(stmt->children[2]->key.sloc);
+				if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
+				else {
+					printf("If statement param error on line %d\n", get_lineNo());
+					exit(1);
+				}
+				break;
+			case T_INTLIT:
+				c8_load_instr_const(stmt->children[2]->key.val, 0);
+				break;
+			default:
+				st_execute(stmt->children[2]);
+		}
+
+	} else {
+		c8_jp_label(endif_label);
+		c8_print_label(else_label);
+		c8_load_instr_const(0, 0);	
+	}
+
+	c8_print_label(endif_label);
+
+
+}
+
 //this fxn will generate assembly
 void st_execute(struct ast_node* stmt) {
 	struct ast_node* glue;
@@ -292,6 +371,9 @@ void st_execute(struct ast_node* stmt) {
 			break;
 		case T_CLS:
 			execute_cls(stmt);
+			break;
+		case T_IF:
+			execute_if(stmt);
 			break;
 		default:
 			printf("Fatal: unsupported statement\n");

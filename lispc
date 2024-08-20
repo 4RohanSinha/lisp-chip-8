@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./lispc-c8 $1
+./assembler out.s
