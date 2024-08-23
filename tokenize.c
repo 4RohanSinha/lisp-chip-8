@@ -134,6 +134,9 @@ int scan(struct token* t) {
 			numParen--;
 			t->tokentype = T_CLOSE_PAREN;
 			break;
+		case '\'':
+			t->tokentype = T_APOSTROPHE;
+			break;
 		case EOF:
 			if (numParen > 0) printf("Unclosed parenthesis\n");
 			t->tokentype = T_EOF;

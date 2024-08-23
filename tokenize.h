@@ -17,7 +17,9 @@ enum {
 
 	T_EQUALS, T_LT, T_GT, T_LTE, T_GTE,
 
-	T_IF
+	T_IF,
+
+	T_APOSTROPHE
 };
 
 struct token {
