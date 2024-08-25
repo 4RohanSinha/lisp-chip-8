@@ -22,6 +22,7 @@ struct ast_node {
 	union {
 		int val;
 		struct symtableloc sloc;
+		int mloc;
 	} key;
 };
 

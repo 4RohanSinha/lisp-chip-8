@@ -2,6 +2,7 @@
 #include "stmt_eval.h"
 #include "tokenize.h"
 #include "ast.h"
+#include "c8.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,6 +21,7 @@ const char* tokenToString(int token) {
         case T_IDENT: return "T_IDENT";
         case T_EOF: return "T_EOF";
 	case T_IF: return "T_IF";
+	case T_STRING: return "T_STRING";
         default: return "UNKNOWN_TOKEN";
     }
 }
@@ -54,6 +56,13 @@ static struct ast_node* process_paren() {
 				cur_node->children[(cur_node->kChildren)++] = process_paren();
 				break;
 			case T_CLOSE_PAREN:
+				break;
+			case T_STRING:
+				new_child = (struct ast_node*)malloc(sizeof(struct ast_node));
+				new_child->key.mloc = t.val.mloc;
+				new_child->t_operatortype = T_STRING;
+				new_child->kChildren = 0;
+				cur_node->children[(cur_node->kChildren)++] = new_child;
 				break;
 			case T_INTLIT:
 				new_child = (struct ast_node*)malloc(sizeof(struct ast_node));
@@ -95,6 +104,7 @@ void st_parse() {
 
 	while (scan(&t)) {
 		switch (t.tokentype) {
+			case T_STRING:
 			case T_INTLIT:
 				break;
 			case T_OPEN_PAREN:
@@ -107,6 +117,8 @@ void st_parse() {
 				exit(1);
 		}	
 	}
+
+	m_object_asm_dump();
 
 }
 

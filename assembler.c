@@ -48,10 +48,21 @@ void write_instruction(struct instruction instr) {
 			buffer[0] = 0x00;
 			buffer[1] = 0xe0;
 			break;
+		case AT_RET:
+			if (instr.nParams > 0) illegal_instr_exit();
+			buffer[0] = 0x00;
+			buffer[1] = 0xee;
+			break;
 		case AT_JP:
 			if (instr.nParams > 1) illegal_instr_exit();
 			if (instr.params[0].p_type != P_INTLIT) illegal_instr_exit();
 			buffer[0] = (0x1 << 4) + ((instr.params[0].val & 0xf00) >> 8);
+			buffer[1] = instr.params[0].val & 0xff;
+			break;
+		case AT_CALL:
+			if (instr.nParams > 1) illegal_instr_exit();
+			if (instr.params[0].p_type != P_INTLIT) illegal_instr_exit();
+			buffer[0] = (0x2 << 4) + ((instr.params[0].val & 0xf00) >> 8);
 			buffer[1] = instr.params[0].val & 0xff;
 			break;
 		case AT_SNE:
@@ -281,7 +292,6 @@ static struct instr_dec decode(char* text) {
 				id.val = getAddressForLabel(text);
 				return id;
 			}
-
 			illegal_instr_exit();
 
 	}

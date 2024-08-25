@@ -19,7 +19,11 @@ enum {
 
 	T_IF,
 
-	T_APOSTROPHE
+	T_APOSTROPHE,
+
+	T_DOUBLE_QUOTE,
+
+	T_STRING
 };
 
 struct token {
@@ -28,6 +32,7 @@ struct token {
 	union {
 		int intval;
 		struct symtableloc sloc;		
+		int mloc;
 	} val;
 
 };

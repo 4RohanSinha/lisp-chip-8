@@ -17,6 +17,7 @@ void c8_add_instr_reg(int, int);
 void c8_sub_instr_const(int, int);
 void c8_sub_instr_reg(int, int);
 void c8_load_instr_const(int, int);
+void c8_load_instr_label(char*, int);
 void c8_load_instr_reg(int, int);
 void c8_callq(const char*);
 void c8_if_stmt_branch(bool, char*, char*);
@@ -27,6 +28,7 @@ void c8_lt_reg(int, int);
 void c8_lt_const(int, int);
 void c8_lte_reg(int, int);
 void c8_lte_const(int, int);
+void c8_dump_str_label(const char*, const char*);
 
 
 /*

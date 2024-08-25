@@ -1,5 +1,6 @@
 #include "tokenize.h"
 #include "misc.h"
+#include "sym.h"
 #include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
@@ -91,6 +92,44 @@ static int scan_identifier(int c, char* buffer, int max_len) {
 	return len;
 }
 
+static int scan_string_length() {
+	int len = 0;
+	int oldLineNo = lineNo;
+	char c = next();
+
+	while (c != '"' && c != EOF) {
+		len++;
+		c = next();
+	}
+
+	lineNo = oldLineNo;
+
+	if (c == EOF) {
+		printf("Error: unclosed string on line %d\n", lineNo);
+		exit(1);
+	}
+
+	return len;
+}
+
+static char* scan_string() {
+	int len = scan_string_length();
+	int i = 0;
+	char* str_rep = (char*)(malloc(sizeof(char)*(len+1)));
+	fseek(in_file, -(len+1), SEEK_CUR);
+	char c = next();
+
+	while (c != '"' && c != EOF) {
+		str_rep[i++] = c;
+		c = next();
+	}
+
+	str_rep[len] = '\0';
+
+	return str_rep;
+
+}
+
 static int keyword(char* s) {
 	switch (s[0]) {
 		case '+':
@@ -124,7 +163,13 @@ static int keyword(char* s) {
 
 int scan(struct token* t) {
 	int c = skip();
+	char* new_str;
 	switch (c) {
+		case '"':
+			new_str = scan_string();
+			t->tokentype = T_STRING;
+			t->val.mloc = m_object_add_data(new_str, M_STRING);
+			break;
 		case '(':
 			numParen++;
 			t->tokentype = T_OPEN_PAREN;

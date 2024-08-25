@@ -9,6 +9,8 @@ enum { I_FUNC, I_VAR, I_NONE };
 
 enum { S_RES, S_UNRES };
 
+enum { M_SPRITE, M_STRING };
+
 struct location {
 	int type;
 	unsigned int loc;
@@ -31,8 +33,21 @@ struct unresolved_symbol {
 	int index;
 };
 
+struct m_object_loc {
+	int m_type;
+	int id;
+	char* data;
+	char symbol[100];
+};
+
 struct symbol resolve_symbol(struct symtableloc);
 struct symtableloc sym_process_symbol(char*);
-struct location sym_declare_symbol(struct symtableloc);
+struct symbol sym_declare_symbol(struct symtableloc);
 char* sym_get_symbol_for(struct symtableloc);
+char* sym_get_symbol_by_loc(struct location);
+
+int m_object_add_data(char*, int);
+void m_object_rename_data(char*, char*);
+char* m_object_get_label_for_index(int);
+void m_object_asm_dump();
 #endif

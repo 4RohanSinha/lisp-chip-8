@@ -75,6 +75,11 @@ void c8_load_instr_const(int c, int reg) {
 	reg_use[reg] = 1;
 }
 
+void c8_load_instr_label(char* lbl, int reg) {
+	fprintf(out_file, "\tld V%d, %s\n", reg, lbl);
+	reg_use[reg] = 1;
+}
+
 void c8_load_instr_reg(int dest, int src) {
 	fprintf(out_file, "\tld V%d, V%d\n", dest, src);
 	reg_use[dest] = 1;
@@ -112,4 +117,9 @@ void c8_jp_label(const char* label) {
 
 void c8_print_label(const char* label) {
 	fprintf(out_file, "%s:\n", label);
+}
+
+void c8_dump_str_label(const char* label, const char* data) {
+	fprintf(out_file, "%s:\n", label);
+	fprintf(out_file, "\t.str \"%s\"", data);
 }

@@ -205,26 +205,27 @@ void execute_setq(struct ast_node* stmt) {
 		cur_symbol = resolve_symbol(stmt->children[i]->key.sloc);
 
 		if (cur_symbol.i_type == I_NONE) {
-			loc = sym_declare_symbol(stmt->children[i]->key.sloc);
-		} else {
-			loc = cur_symbol.loc;
+			cur_symbol = sym_declare_symbol(stmt->children[i]->key.sloc);
 		}
 
 		//TODO: make self references illegal
-		if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT && stmt->children[i+1]->sType != S_FUNC) {
+		if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT && stmt->children[i+1]->sType != S_FUNC) {
 			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
 
 			if (next_sym.loc.type == L_REG) {
-				c8_load_instr_reg(loc.loc, next_sym.loc.loc);
+				c8_load_instr_reg(cur_symbol.loc.loc, next_sym.loc.loc);
 			} else {
 				printf("Fatal setq\n");
 				exit(1);
 			}
-		} else if (loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_INTLIT) {
-			c8_load_instr_const(stmt->children[i+1]->key.val, loc.loc);
-		} else if (loc.type == L_REG) {
+		} else if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_INTLIT) {
+			c8_load_instr_const(stmt->children[i+1]->key.val, cur_symbol.loc.loc);
+		} else if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_STRING) {
+			m_object_rename_data(m_object_get_label_for_index(stmt->children[i+1]->key.mloc), cur_symbol.name);
+			c8_load_instr_label(m_object_get_label_for_index(stmt->children[i+1]->key.mloc), cur_symbol.loc.loc);
+		} else if (cur_symbol.loc.type == L_REG) {
 			st_execute(stmt->children[i+1]);
-			c8_load_instr_reg(loc.loc, 0);
+			c8_load_instr_reg(cur_symbol.loc.loc, 0);
 		}
 	}
 }
@@ -251,6 +252,8 @@ void execute_fxn(struct ast_node* stmt) {
 			c8_load_instr_reg(next_reg, 0);
 		} else if (stmt->children[i]->t_operatortype == T_INTLIT) {
 			c8_load_instr_const(stmt->children[i]->key.val, next_reg);
+		} else if (stmt->children[i]->t_operatortype == T_STRING) {
+			c8_load_instr_label(m_object_get_label_for_index(stmt->children[i]->key.mloc), next_reg);
 		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
 			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
 			if (nextS.loc.type == L_REG)
@@ -300,6 +303,9 @@ void execute_if(struct ast_node* stmt) {
 		case T_INTLIT:
 			c8_load_instr_const(stmt->children[0]->key.val, 0);
 			break;
+		case T_STRING:
+			c8_load_instr_label(m_object_get_label_for_index(stmt->children[0]->key.mloc), 0);
+			break;
 		default:
 			st_execute(stmt->children[0]);
 	}
@@ -317,6 +323,9 @@ void execute_if(struct ast_node* stmt) {
 			break;
 		case T_INTLIT:
 			c8_load_instr_const(stmt->children[1]->key.val, 0);
+			break;
+		case T_STRING:
+			c8_load_instr_label(m_object_get_label_for_index(stmt->children[1]->key.mloc), 0);
 			break;
 		default:
 			st_execute(stmt->children[1]);
@@ -336,6 +345,9 @@ void execute_if(struct ast_node* stmt) {
 				break;
 			case T_INTLIT:
 				c8_load_instr_const(stmt->children[2]->key.val, 0);
+				break;
+			case T_STRING:
+				c8_load_instr_label(m_object_get_label_for_index(stmt->children[2]->key.mloc), 0);
 				break;
 			default:
 				st_execute(stmt->children[2]);
