@@ -29,7 +29,7 @@ void c8_lt_const(int, int);
 void c8_lte_reg(int, int);
 void c8_lte_const(int, int);
 void c8_dump_str_label(const char*, const char*);
-
+void c8_stdlib_dump();
 
 /*
 (+ 1 2 a 3)

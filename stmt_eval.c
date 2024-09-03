@@ -24,6 +24,38 @@ we look at a particular expression and try to resolve it as much.
 typedef int(*accum_val_t)(int, int);
 typedef int(*accum_reg_t)(int*, int*, int); //accumulation register, subtraction register, input register
 
+void resolve_exp_to_reg(struct ast_node* stmt, int output_reg) {
+	struct symbol nextS;
+
+	switch (stmt->t_operatortype) {
+		case T_IDENT:
+			if (stmt->sType == S_FUNC) {
+				st_execute(stmt);
+				if (output_reg != 0) c8_load_instr_reg(output_reg, 0);
+				break;
+			}
+
+			nextS = resolve_symbol(stmt->key.sloc);
+			if (nextS.loc.type == L_REG) {
+				c8_load_instr_reg(output_reg, nextS.loc.loc);
+			} else {
+				printf("Fatal: unknown identifier on line %d\n", get_lineNo());
+				exit(1);
+			}
+
+			break;
+		case T_INTLIT:
+			c8_load_instr_const(stmt->key.val, output_reg);
+			break;
+		case T_STRING:
+			c8_load_instr_label(m_object_get_label_for_index(stmt->key.mloc), output_reg);
+			break;
+		default:
+			st_execute(stmt);
+			if (output_reg != 0) c8_load_instr_reg(output_reg, 0);
+	}
+}
+
 bool resolve_exp(struct ast_node* stmt, int* res) {
 	int accumulatedTotal = 0;
 	bool canResolve = true;
@@ -78,7 +110,6 @@ bool resolve_exp(struct ast_node* stmt, int* res) {
 			if (nextS.loc.type == L_REG) {
 				if (accumReg == -1 && (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0))) {
 					accumReg = c8_alloc_reg();
-					//(- 7 x) vs // (- x 7)
 					
 					//if we encounter a variable as the first thing, we want to load it into the accumulator
 					c8_load_instr_reg(accumReg, nextS.loc.loc);
@@ -136,63 +167,8 @@ void gen_arith_res(struct ast_node* stmt) {
 	if (didResolve) c8_load_instr_const(x, 0);
 
 }
-/*
-void gen_arith_res(struct ast_node* stmt, int* output) {
-	//accumulate what we know - optimization
-	//generate code to place what we need in a return value register r0
-	//each time we resolve it - we add code to add that result to our accumulatino
-	int prevAccumulatedTotal = 0;
-	int numResolved = 0;
-
-	for (int i = 0; i < stmt->kChildren; i++) {
-		if (stmt->children[i]->t_operatortype == T_INTLIT) {
-			numResolved++;
-			if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) prevAccumulatedTotal += stmt->children[i]->key.val;
-			else if (stmt->t_operatortype == T_MINUS) prevAccumulatedTotal -= stmt->children[i]->key.val;
-		}
-	}
-
-	int accum_reg = c8_alloc_reg();
-	c8_load_instr_const(prevAccumulatedTotal, accum_reg);
-
-	for (int i = 0; i < stmt->kChildren; i++) {
-		if (stmt->children[i]->sType == S_FUNC) {
-			st_execute(stmt->children[i]);
-
-			if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) {
-				c8_add_instr_reg(accum_reg, 0);
-			
-			} else if (stmt->t_operatortype == T_MINUS) {
-				c8_sub_instr_reg(accum_reg, 0);
-			
-			}
-
-		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
-			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
-			if (nextS.loc.type == L_REG) {
-				if (stmt->t_operatortype == T_PLUS || (stmt->t_operatortype == T_MINUS && i == 0)) {
-					c8_add_instr_reg(accum_reg, nextS.loc.loc);
-				} else if (stmt->t_operatortype == T_MINUS) {
-					c8_sub_instr_reg(accum_reg, nextS.loc.loc);
-				}
-
-			} else {
-				printf("Memory access error arithmetic\n");
-				exit(1);
-			}
-
-		} else if (stmt->children[i]->t_operatortype != T_INTLIT) {
-			printf("Fatal error\n");	
-			exit(1);
-		}
-	}
-
-	c8_load_instr_reg(0, accum_reg);
-}
-*/
 
 void execute_setq(struct ast_node* stmt) {
-	struct location loc;
 	struct symbol cur_symbol;
 	struct symbol next_sym;
 
@@ -202,31 +178,16 @@ void execute_setq(struct ast_node* stmt) {
 	}
 
 	for (int i = 0; i < stmt->kChildren; i+=2) {
+		resolve_exp_to_reg(stmt->children[i+1], 0);
+
 		cur_symbol = resolve_symbol(stmt->children[i]->key.sloc);
 
 		if (cur_symbol.i_type == I_NONE) {
 			cur_symbol = sym_declare_symbol(stmt->children[i]->key.sloc);
 		}
 
-		//TODO: make self references illegal
-		if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_IDENT && stmt->children[i+1]->sType != S_FUNC) {
-			next_sym = resolve_symbol(stmt->children[i+1]->key.sloc);
+		c8_load_instr_reg(cur_symbol.loc.loc, 0);
 
-			if (next_sym.loc.type == L_REG) {
-				c8_load_instr_reg(cur_symbol.loc.loc, next_sym.loc.loc);
-			} else {
-				printf("Fatal setq\n");
-				exit(1);
-			}
-		} else if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_INTLIT) {
-			c8_load_instr_const(stmt->children[i+1]->key.val, cur_symbol.loc.loc);
-		} else if (cur_symbol.loc.type == L_REG && stmt->children[i+1]->t_operatortype == T_STRING) {
-			m_object_rename_data(m_object_get_label_for_index(stmt->children[i+1]->key.mloc), cur_symbol.name);
-			c8_load_instr_label(m_object_get_label_for_index(stmt->children[i+1]->key.mloc), cur_symbol.loc.loc);
-		} else if (cur_symbol.loc.type == L_REG) {
-			st_execute(stmt->children[i+1]);
-			c8_load_instr_reg(cur_symbol.loc.loc, 0);
-		}
 	}
 }
 
@@ -238,30 +199,30 @@ void execute_fxn(struct ast_node* stmt) {
 
 	int nRegisters = 0;
 	int alloc_registers[5];
+	int product_registers[5]; //registers that have a function evaluation that should be done first
+
+	//this is to make sure that the function evaluation happens before the function call
+	for (int i = 0; i < stmt->kChildren; i++) {
+		if (stmt->children[i]->sType == S_FUNC) {
+			st_execute(stmt->children[i]);
+			product_registers[i] = c8_alloc_reg();
+			c8_load_instr_reg(product_registers[i], 0);
+		} else {
+			product_registers[i] = -1;
+		}
+	}
 
 	for (int i = 0; i < stmt->kChildren; i++) {
 		int next_reg;
 
-		if (stmt->children[i]->kChildren > 0) st_execute(stmt->children[i]);
-
 		next_reg = c8_alloc_param_reg();
 		alloc_registers[i] = next_reg;
 		nRegisters++;
-
-		if (stmt->children[i]->kChildren > 0) {
-			c8_load_instr_reg(next_reg, 0);
-		} else if (stmt->children[i]->t_operatortype == T_INTLIT) {
-			c8_load_instr_const(stmt->children[i]->key.val, next_reg);
-		} else if (stmt->children[i]->t_operatortype == T_STRING) {
-			c8_load_instr_label(m_object_get_label_for_index(stmt->children[i]->key.mloc), next_reg);
-		} else if (stmt->children[i]->t_operatortype == T_IDENT) {
-			struct symbol nextS = resolve_symbol(stmt->children[i]->key.sloc);
-			if (nextS.loc.type == L_REG)
-				c8_load_instr_reg(next_reg, nextS.loc.loc);
-			else {
-				printf("Unsupported memory access (testing)\n");
-				exit(1);
-			}
+		
+		if (stmt->children[i]->sType == S_FUNC) {
+			c8_load_instr_reg(next_reg, product_registers[i]);
+		} else {
+			resolve_exp_to_reg(stmt->children[i], next_reg);
 		}
 	}
 
@@ -291,71 +252,17 @@ void execute_if(struct ast_node* stmt) {
 		exit(1);
 	}
 
-	switch (stmt->children[0]->t_operatortype) {
-		case T_IDENT:
-			nextS = resolve_symbol(stmt->children[0]->key.sloc);
-			if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
-			else {
-				printf("If statement param error on line %d\n", get_lineNo());
-				exit(1);
-			}
-			break;
-		case T_INTLIT:
-			c8_load_instr_const(stmt->children[0]->key.val, 0);
-			break;
-		case T_STRING:
-			c8_load_instr_label(m_object_get_label_for_index(stmt->children[0]->key.mloc), 0);
-			break;
-		default:
-			st_execute(stmt->children[0]);
-	}
+	resolve_exp_to_reg(stmt->children[0], 0);
 
 	c8_if_stmt_branch(true, else_label, endif_label);
 
-	switch (stmt->children[1]->t_operatortype) {
-		case T_IDENT:
-			nextS = resolve_symbol(stmt->children[1]->key.sloc);
-			if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
-			else {
-				printf("If statement param error on line %d\n", get_lineNo());
-				exit(1);
-			}
-			break;
-		case T_INTLIT:
-			c8_load_instr_const(stmt->children[1]->key.val, 0);
-			break;
-		case T_STRING:
-			c8_load_instr_label(m_object_get_label_for_index(stmt->children[1]->key.mloc), 0);
-			break;
-		default:
-			st_execute(stmt->children[1]);
-	}
+	resolve_exp_to_reg(stmt->children[1], 0);
+	c8_jp_label(endif_label);
+	c8_print_label(else_label);
 
 	if (hasElse) {
-		c8_jp_label(endif_label);
-		c8_print_label(else_label);
-		switch (stmt->children[2]->t_operatortype) {
-			case T_IDENT:
-				nextS = resolve_symbol(stmt->children[2]->key.sloc);
-				if (nextS.loc.type == L_REG) c8_load_instr_reg(0, nextS.loc.loc);
-				else {
-					printf("If statement param error on line %d\n", get_lineNo());
-					exit(1);
-				}
-				break;
-			case T_INTLIT:
-				c8_load_instr_const(stmt->children[2]->key.val, 0);
-				break;
-			case T_STRING:
-				c8_load_instr_label(m_object_get_label_for_index(stmt->children[2]->key.mloc), 0);
-				break;
-			default:
-				st_execute(stmt->children[2]);
-		}
-
+		resolve_exp_to_reg(stmt->children[2], 0);
 	} else {
-		c8_jp_label(endif_label);
-		c8_print_label(else_label);
 		c8_load_instr_const(0, 0);	
 	}
 

@@ -8,15 +8,24 @@ FILE* out_file;
 static int reg_use[16];
 static int lblCount;
 
+void c8_stdlib_dump() {
+	FILE* in_file = fopen("stdlib.asm", "r");
+	char c;
+
+	while ((c = fgetc(in_file)) != EOF) {
+		fputc(c, out_file);
+	}
+}
 void c8_init(const char* fname) {
 	out_file = fopen(fname, "w");
 	lblCount = 0;
+	c8_stdlib_dump();
 	fprintf(out_file, "main:\n");
 }
 
 //r0 - return addr
 int c8_alloc_reg() {
-	for (int i = 6; i < 15; i++) {
+	for (int i = 7; i < 14; i++) {
 		if (reg_use[i] == 0) {
 			reg_use[i] = 1;
 			return i;
@@ -28,7 +37,7 @@ int c8_alloc_reg() {
 }
 
 int c8_alloc_param_reg() {
-	for (int i = 1; i < 6; i++) {
+	for (int i = 2; i < 7; i++) {
 		if (reg_use[i] == 0) {
 			reg_use[i] = 1;
 			return i;
@@ -76,7 +85,13 @@ void c8_load_instr_const(int c, int reg) {
 }
 
 void c8_load_instr_label(char* lbl, int reg) {
-	fprintf(out_file, "\tld V%d, %s\n", reg, lbl);
+	if (reg_use[reg+1] == 1) {
+		printf("Fatal: label load error\n");
+		exit(1);
+	}
+
+	reg_use[reg+1] = 1;
+	fprintf(out_file, "\tld V%d, V%d, %s\n", reg, reg+1, lbl);
 	reg_use[reg] = 1;
 }
 

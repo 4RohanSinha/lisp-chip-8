@@ -4,7 +4,6 @@ interp
 *.o
 *.lsp
 *.s
-*.asm
 *.swp
 *.out
 *.ch8

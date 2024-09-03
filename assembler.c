@@ -65,6 +65,26 @@ void write_instruction(struct instruction instr) {
 			buffer[0] = (0x2 << 4) + ((instr.params[0].val & 0xf00) >> 8);
 			buffer[1] = instr.params[0].val & 0xff;
 			break;
+		case AT_SHL:
+			if (instr.nParams > 1) illegal_instr_exit();
+			if (instr.params[0].p_type != P_REG) illegal_instr_exit();
+			buffer[0] = (0x8 << 4) + instr.params[0].val;
+			buffer[1] = 0x0e;
+			break;
+		case AT_SE:
+			if (instr.nParams > 2) illegal_instr_exit();
+			if (instr.params[0].p_type != P_REG) illegal_instr_exit();
+			if (instr.params[1].p_type == P_INTLIT) {
+				buffer[0] = (0x3 << 4) + (instr.params[0].val);
+				buffer[1] = instr.params[1].val & 0xff;
+				break;	
+			} else if (instr.params[1].p_type == P_REG) {
+				buffer[0] = (0x9 << 5) + (instr.params[0].val);
+				buffer[1] = (instr.params[1].val << 4) + 0;
+				break;
+			}
+
+			illegal_instr_exit();
 		case AT_SNE:
 			if (instr.nParams > 2) illegal_instr_exit();
 			if (instr.params[0].p_type != P_REG) illegal_instr_exit();
@@ -119,7 +139,22 @@ void write_instruction(struct instruction instr) {
 
 			break;
 		case AT_LD:
-			if (instr.nParams > 2) {
+			if (instr.nParams == 3 && instr.params[0].p_type == P_REG && instr.params[1].p_type == P_REG && instr.params[2].p_type == P_INTLIT) {
+
+				struct instruction p;
+				p.a_type = AT_LD;
+				p.nParams = 2;
+				p.params[0].p_type = P_REG;
+				p.params[0].val = instr.params[0].val;
+				p.params[1].p_type = P_INTLIT;
+				p.params[1].val = ((instr.params[2].val >> 8) & 0xff);
+				write_instruction(p);
+				p.params[0].p_type = P_REG;
+				p.params[0].val = instr.params[1].val;
+				p.params[1].p_type = P_INTLIT;
+				p.params[1].val = (instr.params[2].val) & 0xff;
+				write_instruction(p);
+			} else if (instr.nParams > 2) {
 				illegal_instr_exit();
 			}
 
@@ -167,7 +202,7 @@ void write_instruction(struct instruction instr) {
 				buffer[1] = 0xeb;
 			} else if (instr.params[0].p_type == P_INTLIT) {
 				buffer[0] = (0x8 << 4) + (instr.params[0].val & 0xF0);
-				buffer[1] = (instr.params[0].val & 0xF) + 0xA;
+				buffer[1] = ((instr.params[0].val & 0xF) << 4) + 0xA;
 			} else { illegal_instr_exit(); }
 			break;
 		case AT_PRINTS:
@@ -284,6 +319,8 @@ static struct instr_dec decode(char* text) {
 		case 's':
 			if (!strcmp("sub", text)) id.a_type = AT_SUB;
 			if (!strcmp("sne", text)) id.a_type = AT_SNE;
+			if (!strcmp("se", text)) id.a_type = AT_SE;
+			if (!strcmp("shl", text)) id.a_type = AT_SHL;
 		default:
 			if (id.a_type != -1) break;
 			if (getAddressForLabel(text) != -1) {
@@ -353,7 +390,7 @@ int process_data_string() {
 
 int process_labels() {
 	char c;
-	char text_buffer[10];
+	char text_buffer[20];
 	int i = 0;
 	int numWords = 0;
 	bool labelAddedOnCurLine = false;
@@ -361,9 +398,8 @@ int process_labels() {
 	int curInstruction = 0x200;
 	int newDataSize = 0;
 	bool movedFp = false;
-
 	while ((c = fgetc(in_handle)) != EOF) {
-		if (i >= 9) illegal_instr_exit();
+		if (i >= 19) illegal_instr_exit();
 		
 		if (c == ':') {
 			if (numWords > 0) illegal_instr_exit();
@@ -400,7 +436,7 @@ int process_labels() {
 
 void generate_rom() {
 	char c;
-	char text_buffer[10];
+	char text_buffer[20];
 	struct instruction cur_instruction;
 	struct instr_dec decoding;
 	bool skipCurLine = false;
@@ -442,7 +478,7 @@ void generate_rom() {
 	fseek(in_handle, 0, SEEK_SET);
 
 	while ((c = fgetc(in_handle)) != EOF) {
-		if (i >= 9) {
+		if (i >= 19) {
 			illegal_instr_exit();
 		}
 
@@ -463,12 +499,12 @@ void generate_rom() {
 		}
 		
 		if (c == '\n') {
-			lineNo++;
 			if (cur_instruction.a_type != -1 && !skipCurLine) {
 				write_instruction(cur_instruction);
 				cur_instruction.a_type = -1;
 				cur_instruction.nParams = 0;
 			}
+			lineNo++;
 
 			i = 0;
 			skipCurLine = false;

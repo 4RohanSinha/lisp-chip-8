@@ -28,10 +28,6 @@ struct symtableloc {
 	int type;
 };
 
-struct unresolved_symbol {
-	char* sym;
-	int index;
-};
 
 struct m_object_loc {
 	int m_type;

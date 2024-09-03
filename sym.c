@@ -11,6 +11,11 @@ static int nLocals = 0;
 static int nUnresolved = 0;
 static int numMemObjects = 0;
 
+struct unresolved_symbol {
+	char* sym;
+	int index;
+};
+
 struct symbol symtable[NSYMBOLS];
 struct unresolved_symbol unresolved_symbols[NSYMBOLS];
 struct m_object_loc object_mem_locs[NSYMBOLS];
