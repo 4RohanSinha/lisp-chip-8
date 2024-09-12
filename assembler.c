@@ -48,6 +48,11 @@ void write_instruction(struct instruction instr) {
 			buffer[0] = 0x00;
 			buffer[1] = 0xe0;
 			break;
+		case AT_DRW:
+			if (instr.nParams != 3) illegal_instr_exit();
+			buffer[0] = (0xD << 4) + (instr.params[0].val & 0xf);
+			buffer[1] = ((instr.params[1].val & 0xf) << 4) + (instr.params[2].val & 0xf);
+			break;
 		case AT_RET:
 			if (instr.nParams > 0) illegal_instr_exit();
 			buffer[0] = 0x00;
@@ -256,8 +261,23 @@ static int get_int(char* text) {
 }
 
 static int get_hex(char* text) {
-//TODO
-	return 0;
+	int literal = 0;
+	int i = 2;
+
+	if (strlen(text) < 3) illegal_instr_exit();
+
+	if (text[0] != '0' && (text[1] != 'x' || text[1] != 'X')) illegal_instr_exit();
+
+	while (text[i] != '\0') {
+		if (!isxdigit(*text)) illegal_instr_exit();
+		if (i > 0) literal *= 16;
+		if (text[i] >= '0' && text[i] <= '9') literal += (text[i] - '0');
+		if (text[i] >= 'a' && text[i] <= 'f') literal += (text[i] - 'a' + 10);
+		if (text[i] >= 'A' && text[i] <= 'F') literal += (text[i] - 'A' + 10);
+		i++;
+	}
+
+	return literal;
 }
 
 static struct instr_dec decode(char* text) {
@@ -275,7 +295,11 @@ static struct instr_dec decode(char* text) {
 	}
 
 	if (text[0] == '0' && text[1] == 'x') {
-
+		literal = get_hex(text);
+		id.d_type = DT_VAL;
+		id.p_type = P_INTLIT;
+		id.val = literal;
+		return id;
 	}
 
 	if (*text == 'V') {
@@ -294,6 +318,8 @@ static struct instr_dec decode(char* text) {
 		case 'c':
 			if (!strcmp("call", text)) id.a_type = AT_CALL;
 			if (!strcmp("cls", text)) id.a_type = AT_CLS;
+		case 'd':
+			if (!strcmp("drw", text)) id.a_type = AT_DRW;
 		case 'I':
 			if (!strcmp("I", text)) {
 				id.d_type = DT_SPARAM;
@@ -388,6 +414,42 @@ int process_data_string() {
 	illegal_instr_exit();
 }
 
+int process_data_sprite() {
+	bool encounteredOpenParen = false;
+	int i = 0;
+	char text_buffer[5];
+	char c;
+	unsigned short val;
+	int size = 0;
+	int numVals = 0;
+
+	while ((c = fgetc(in_handle)) != EOF) {
+		if (i > 4) illegal_instr_exit();
+		if (encounteredOpenParen) {
+			if (c == '\n') lineNo++;
+			if (c == ' ' || (c == ')' && i > 0)) {
+				text_buffer[i++] = '\0';
+				val = get_hex(text_buffer);
+				fputc(val & 0xFF, out_handle);
+				size ++;
+				i = 0;
+				numVals++;
+			}
+			
+			if (c == ')') {
+				if (numVals % 2 != 0) illegal_instr_exit();
+				fputc(0, out_handle);
+				size++;
+				return size;
+			} else if (!isspace(c)) {
+				text_buffer[i++] = c;
+			}
+		} else if (c == '(') encounteredOpenParen = true;
+	}
+
+	illegal_instr_exit();
+}
+
 int process_labels() {
 	char c;
 	char text_buffer[20];
@@ -404,9 +466,11 @@ int process_labels() {
 		if (c == ':') {
 			if (numWords > 0) illegal_instr_exit();
 			text_buffer[i] = '\0';
-			if (strstr(text_buffer, ".str") != NULL) {
+			if (strstr(text_buffer, ".str") != NULL || strstr(text_buffer, ".spr") != NULL) {
 				if (!movedFp) { fseek(out_handle, 2, SEEK_CUR); movedFp = true; }
-				newDataSize = process_data_string();
+
+				if (strstr(text_buffer, ".str") != NULL) newDataSize = process_data_string();
+				else newDataSize = process_data_sprite();
 				moveAddressesAfterBy(endOfData, newDataSize);
 				update_label_table(text_buffer, endOfData);
 				endOfData += newDataSize;
@@ -449,7 +513,6 @@ void generate_rom() {
 	cur_instruction.nParams = 0;
 
 	process_labels();
-
 	lineNo = 1;
 
 	mainAddr = getAddressForLabel("main");
@@ -484,7 +547,7 @@ void generate_rom() {
 
 		if ((c == ',' || c == ' ' || c == '\n') && i > 0) {
 			text_buffer[i] = '\0';
-			if (!strcmp(text_buffer, ".str")) skipCurLine = true;
+			if (!strcmp(text_buffer, ".str") || !strcmp(text_buffer, ".spr")) skipCurLine = true;
 			if (!skipCurLine) {
 				decoding = decode(text_buffer);
 				update_instruction(&cur_instruction, &decoding);

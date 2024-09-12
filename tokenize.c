@@ -144,6 +144,7 @@ static int keyword(char* s) {
 			if (!strcmp(s, "let")) return T_LET;
 		case 's':
 			if (!strcmp(s, "setq")) return T_SETQ;
+			if (!strcmp(s, "sprite-literal")) return T_SPRITE_LITERAL_DECL;
 		case 'c':
 			if (!strcmp(s, "cls")) return T_CLS;
 		case 'i':

@@ -23,7 +23,9 @@ enum {
 
 	T_DOUBLE_QUOTE,
 
-	T_STRING
+	T_STRING,
+
+	T_SPRITE_LITERAL_DECL
 };
 
 struct token {
